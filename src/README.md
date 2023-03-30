@@ -76,3 +76,62 @@ docker restart [container_id|container_name]
 ```
 
 ![1_7](../misc/images/1_7.png "1_7")
+
+
+## Part 2. Операции с контейнером
+
+1. Через команду прочитаем файл nginx.conf из контейнера
+
+```
+docker exec -it 0c cat etc/nginx/nginx.conf
+```
+
+_exec запускает команду в контейнере. -i - keep STDIN open even if not attached, -t - allocate a pseudo-TTY_
+
+![2_1](../misc/images/2_1.png "2_1")
+
+2. Создадим свой локальный файл и азпишем в него содержимое конфигурационного файла контейнера:
+
+```
+touch nginx.conf
+docker exec -it 4b cat /etc/nginx/nginx.conf > nginx.conf
+```
+
+3. Добавим следующий куск кода в http {} в конфигурационном файле:
+
+```
+server {
+        listen 80;
+        listen [::]:80;
+        location = /status {
+          stub_status on;
+        }
+    }
+
+```
+
+4. Скопируем файл в контейнер и перезапустим контейнер с помощью exec:
+
+```
+docker cp nginx.conf [container_id|container_name]:etc/nginx/nginx.conf
+docker exec -it [container_id|container_name] service nginx reload 
+```
+
+5. Проверим localhost:80/status:
+
+```
+ open http://127.0.0.1:80/status
+```
+
+![2_2](../misc/images/2_2.png "2_2")
+
+![2_3](../misc/images/2_3.png "2_3")
+
++++
+
+![2_4](../misc/images/2_4.png "2_4")
+
+![2_5](../misc/images/2_5.png "2_5")
+
+![2_6](../misc/images/2_6.png "2_6")
+
