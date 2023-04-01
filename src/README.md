@@ -82,7 +82,7 @@ docker restart [container_id|container_name]
 
 1. Через команду прочитаем файл nginx.conf из контейнера
 
-```
+```bash
 docker exec -it 0c cat etc/nginx/nginx.conf
 ```
 
@@ -92,14 +92,14 @@ _exec запускает команду в контейнере. -i - keep STDIN
 
 2. Создадим свой локальный файл и азпишем в него содержимое конфигурационного файла контейнера:
 
-```
+```bash
 touch nginx.conf
 docker exec -it 4b cat /etc/nginx/nginx.conf > nginx.conf
 ```
 
 3. Добавим следующий куск кода в http {} в конфигурационном файле:
 
-```
+```bash
 server {
         listen 80;
         listen [::]:80;
@@ -119,7 +119,7 @@ docker exec -it [container_id|container_name] service nginx reload
 
 5. Проверим localhost:80/status:
 
-```
+```bash
  open http://127.0.0.1:80/status
 ```
 
@@ -129,7 +129,7 @@ docker exec -it [container_id|container_name] service nginx reload
 
 6.  Для архивирования есть две команды - save и export. Save для images, export работает только с контейнерами - делается snapshot файловой системы. После архивирования остановила контейнер.
 
-```
+```bash
 docker export CONTAINER > CONTAINER.tar
 ```
 
@@ -137,7 +137,7 @@ docker export CONTAINER > CONTAINER.tar
 
 7. Удалим образ. Так как контейнеры на основе данного образа еще не были удалены, то добавим флаг _-f (--force)_:
 
-```
+```bash
  docker rmi -f IMAGE 
 ```
 
@@ -149,7 +149,7 @@ docker export CONTAINER > CONTAINER.tar
 
 9.  Импортировала контейнер и запустила его с помощью следующих команд. В контейнере запустила nginx. Также при запуске контейнера сделала проброс портов, чтобы иметь возможность загрузить через браузер (без проброса портов могла бы проверить в терминале через _'curl http://127.0.0.1:80/status'_):
 
-```
+```bash
 docker import container.tar imported_container:latest
 docker run -p 80:80 -t -i imported_container /bin/sh
 ```
@@ -159,11 +159,56 @@ docker run -p 80:80 -t -i imported_container /bin/sh
 
 ## Part 3. Мини веб-сервер
 
-1. Напишу файл на си для отражения "Hello world!". Подключила библиотеки fcgiapp.h, fcgi_stdio.h.
+1. Напишем файл на C и fast-cgi для отражения "Hello world!" в браузере. Документация для помощи: https://fastcgi-archives.github.io/FastCGI_Developers_Kit_FastCGI.html
 
+```c
+#include <stdio.h>
+#include <fcgi_stdio.h>
+
+int main(void) {
+    while (FCGI_Accept() >= 0) {
+        printf(
+            "Content-type: text/html\r\n"
+            "\r\n"
+            "<title>Hello World!</title>"
+            "<p>Hello World!</p>"
+        );
+    }
+    return 0;
+}
 ```
 
-```
+2. На компьютере, на котором я писала скрипт с "Hello world!", запуск скрипта  затруднителен. 
+Воспользуемся докер-контейнером. Скачаем nginx образ, запустим контейнер с настроенными портами и в нем сделаем установку необходимых пакетов: spawn-fcgi, gcc, libfcgi-dev. Последняя пригодится при линкове проекта: будет добавлено _-lfcgi_. При помощи spawn-fcgi запустим скомпилированный веб-сервер на порту 8080. 
 
-2. На компьютер, на котором я писала скрипт с "Hello world!", затруднительно устновить _nginx_, поэтому воспользуюсь докер-контейнером. Скачаю nginx образ, запущу контейнер с настроенными портами и в нем сделаю установку необходимых пакетов: spawn-fcgi, gcc, libfcgi-dev. Последняя пригодится при линкове проекта -- будет добавлено _-lfcgi_. Gри помощи spawn-fcgi запущу скомпилированный веб-сервер на порту 8080.
+```bash
+sh 03/03.sh
+```
+- 03/03.sh:
+```bash
+# Чистка неиспользуемых контейнеров и образов
+docker system prune -a -f
+
+# Скачиваем образ nginx и создаем контейнер, прослушивающий 81 порт
+docker pull nginx
+docker run -d -p 81:81 --name 03 nginx
+
+# Обновляем пакеты системы и устанавливаем gcc spawn-fcgi libfcgi-dev
+# -y = yes при запросе "Вы согласны установить то-то?"
+
+docker exec -it 03 apt-get update
+docker exec -it 03 apt-get install -y gcc spawn-fcgi libfcgi-dev
+
+# Копируем файлы в контейнер
+docker cp 03/03.c 03:home/
+docker cp nginx.conf 03:/etc/nginx/
+
+# Запускаем сервер
+docker exec -it 03 gcc /home/03.c -o /etc/nginx/webserver -lfcgi
+docker exec -it 03 spawn-fcgi -p 8080 /etc/nginx/webserver
+docker exec -it 03 service nginx reload 
+
+# Проверяем
+open http://localhost:81/
+```
 
