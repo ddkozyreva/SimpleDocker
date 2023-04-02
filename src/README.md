@@ -212,3 +212,5 @@ docker exec -it 03 service nginx reload
 open http://localhost:81/
 ```
 
+
+https://docs.docker.com/engine/reference/builder/#cmd

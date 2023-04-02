@@ -11,3 +11,4 @@ docker exec -it 03 spawn-fcgi -p 8080 /etc/nginx/webserver
 docker exec -it 03 service nginx reload 
 
 open http://localhost:81/
+
