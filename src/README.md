@@ -182,9 +182,9 @@ int main(void) {
 Воспользуемся докер-контейнером. Скачаем nginx образ, запустим контейнер с настроенными портами и в нем сделаем установку необходимых пакетов: spawn-fcgi, gcc, libfcgi-dev. Последняя пригодится при линкове проекта: будет добавлено _-lfcgi_. При помощи spawn-fcgi запустим скомпилированный веб-сервер на порту 8080. 
 
 ```bash
-sh 03/03.sh
+sh server/webserver.sh
 ```
-- 03/03.sh:
+- server/webserver.sh:
 ```bash
 # Чистка неиспользуемых контейнеров и образов
 docker system prune -a -f
@@ -200,11 +200,11 @@ docker exec -it 03 apt-get update
 docker exec -it 03 apt-get install -y gcc spawn-fcgi libfcgi-dev
 
 # Копируем файлы в контейнер
-docker cp 03/03.c 03:home/
-docker cp nginx.conf 03:/etc/nginx/
+docker cp server/webserver.c 03:home/
+docker cp nginx/nginx.conf 03:/etc/nginx/
 
 # Запускаем сервер
-docker exec -it 03 gcc /home/03.c -o /etc/nginx/webserver -lfcgi
+docker exec -it 03 gcc /home/webserver.c -o /etc/nginx/webserver -lfcgi
 docker exec -it 03 spawn-fcgi -p 8080 /etc/nginx/webserver
 docker exec -it 03 service nginx reload 
 
@@ -214,3 +214,22 @@ open http://localhost:81/
 
 
 https://docs.docker.com/engine/reference/builder/#cmd
+
+
+## Part 4. Свой докер
+
+ > Теперь напишем свой докерфайл и в нем пропишем копирование nginx.conf с хоста и установку нужных пакетов
+
+ 1. Dockerfile:
+
+ ```dockerfile
+# syntax=docker/dockerfile:1
+   
+FROM nginx
+# WORKDIR /webserver
+COPY nginx/nginx.conf .
+COPY server/webserver.c .
+EXPOSE 8080
+RUN apt-get update && apt-get install -y gcc spawn-fcgi libfcgi-dev
+RUN gcc webserver.c -o webserver -lfcgi && spawn-fcgi -p 8080 webserver
+ ```
