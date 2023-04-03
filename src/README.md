@@ -226,10 +226,30 @@ https://docs.docker.com/engine/reference/builder/#cmd
 # syntax=docker/dockerfile:1
    
 FROM nginx
-# WORKDIR /webserver
-COPY nginx/nginx.conf .
+COPY nginx/nginx.conf /etc/nginx/nginx.conf
 COPY server/webserver.c .
-EXPOSE 8080
 RUN apt-get update && apt-get install -y gcc spawn-fcgi libfcgi-dev
-RUN gcc webserver.c -o webserver -lfcgi && spawn-fcgi -p 8080 webserver
+RUN gcc webserver.c -o webserver -lfcgi
  ```
+
+2. В bash-скрипте сбилдим из докерфайла образ и запустим на его основе контейнер с маппингом портов. В запущенном контейнере выполним команду по запуску веб-сервера _spawn-fcgi -p 8080 webserver_. С запущенным контейнером и сервером в нем откроем на хосте http://localhost:80/.
+
+```bash
+docker stop container_04
+docker rm container_04
+docker rmi image_04
+
+docker build -t image_04 .   
+docker images
+docker run -d -p 80:81 --name container_04  image_04
+docker exec -it container_04 spawn-fcgi -p 8080 webserver
+open http://localhost:80/
+ ```
+
+3. Проверка данного задания:
+
+ ```bash
+ sh 04.sh
+ ```
+
+ ## Part 5. Dockle
