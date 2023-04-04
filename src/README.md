@@ -285,3 +285,15 @@ open http://localhost:80/
 ![4_5](../misc/images/4_5.png "4_5")
 
  ## Part 5. Dockle
+
+ 1. Установим dockle:
+
+ ```bash
+ brew install goodwithtech/r/dockle
+ ```
+
+ 2. Запустим на контейнере из предыдущего задания:
+
+ ```bash
+
+ ```
