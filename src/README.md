@@ -228,28 +228,60 @@ https://docs.docker.com/engine/reference/builder/#cmd
 FROM nginx
 COPY nginx/nginx.conf /etc/nginx/nginx.conf
 COPY server/webserver.c .
-RUN apt-get update && apt-get install -y gcc spawn-fcgi libfcgi-dev
-RUN gcc webserver.c -o webserver -lfcgi
+COPY run.sh .
+RUN apt-get update && \
+    apt-get install -y gcc spawn-fcgi libfcgi-dev && \
+    gcc webserver.c -o webserver -lfcgi
+CMD ["bash", "run.sh"]
  ```
 
-2. В bash-скрипте сбилдим из докерфайла образ и запустим на его основе контейнер с маппингом портов. В запущенном контейнере выполним команду по запуску веб-сервера _spawn-fcgi -p 8080 webserver_. С запущенным контейнером и сервером в нем откроем на хосте http://localhost:80/.
+2. Отредактируем nginx.conf
+
+```
+events {
+}
+
+http {
+    server {
+        listen 81;
+        location / {
+          fastcgi_pass 127.0.0.1:8080;
+        }
+        location = /status {
+          stub_status;
+        }
+    }
+}
+
+```
+
+3. run.sh для команд, которые запустятся по умолчанию при запуске контейнера:
+
+```sh
+#!/bin/bash
+spawn-fcgi -p 8080 webserver
+nginx -g "daemon off;"
+```
+
+4. bash-скриптом 04.sh сбилдим из докерфайла образ и запустим на его основе контейнер с маппингом портов. Откроем http://localhost:80/ на хосте.
 
 ```bash
-docker stop container_04
-docker rm container_04
-docker rmi image_04
-
-docker build -t image_04 .   
+docker build -t image_04:hello .   
 docker images
-docker run -d -p 80:81 --name container_04  image_04
-docker exec -it container_04 spawn-fcgi -p 8080 webserver
+docker run -d -p 80:81 --name container_04  image_04:hello
 open http://localhost:80/
  ```
 
-3. Проверка данного задания:
+5. Скриншоты для проверки данного задания. В конце перезапустили контейнер и проверили, что по тем же ссылкам вебсервер работает.
 
- ```bash
- sh 04.sh
- ```
+![4_1](../misc/images/4_1.png "4_1")
+
+![4_2](../misc/images/4_2.png "4_2")
+
+![4_3](../misc/images/4_3.png "4_3")
+
+![4_4](../misc/images/4_4.png "4_4")
+
+![4_5](../misc/images/4_5.png "4_5")
 
  ## Part 5. Dockle
