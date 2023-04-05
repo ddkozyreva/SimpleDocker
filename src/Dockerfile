@@ -1,6 +1,6 @@
 # syntax=docker/dockerfile:1
-   
-FROM debian
+
+FROM debian:10.13-slim
 HEALTHCHECK --interval=5m --timeout=3s \
   CMD curl -f http://localhost/ || exit 1
 
@@ -9,7 +9,6 @@ COPY run.sh ./server/
 COPY nginx/nginx.conf /etc/nginx/nginx.conf
 RUN \
     useradd -ms /bin/bash nginx; \   
-    chmod +x /server/run.sh && \
     apt-get update; \
     apt-get install -y nginx gcc spawn-fcgi libfcgi-dev; \
     rm -rf /var/lib/apt/lists && \
@@ -24,21 +23,12 @@ RUN \
     chmod 777 usr/bin/chfn && \
     chmod 777 usr/bin/chsh && \
     chmod 777 usr/bin/gpasswd && \
-    chmod 777 usr/bin/passwd && \
-    chown -R nginx:nginx /etc/nginx; \
-    chown -R nginx:nginx /usr/bin/ld; \
-    chown -R nginx:nginx /home; \
-    chown -R nginx:nginx /server; \
-    chmod -R 777 /usr/bin/ld; \
-    chown -R nginx:nginx /var/cache/nginx/; \
-    chown -R nginx:nginx /var/run/; \
-    chown -R nginx:nginx /var/log/nginx/; \
+    chmod 777 usr/bin/passwd; \
+    chown -R nginx:nginx /server && \
+    chown -R nginx:nginx /var/run/ && \
+    chown -R nginx:nginx /var/log/nginx/ && \
     chown -R nginx:nginx /var/lib/nginx/
 
 USER nginx
 
 CMD ["bash", "server/run.sh"]
-
-
-# RUN useradd -ms /bin/bash new_user
-# WORKDIR /home/new_user

@@ -1,3 +1,19 @@
+# Simple Docker
+
+Введение в докер. Разработка простого докер образа для собственного сервера.
+
+
+## Contents
+
+1. [Готовый докер](#part-1-готовый-докер)
+2. [Операции с контейнером](#part-2-операции-с-контейнером)
+3. [Мини веб-сервер](#part-3-мини-веб-сервер)
+4. [Свой докер](#part-4-свой-докер)
+5. [Dockle](#part-5-dockle)
+6. [Базовый Docker Compose](#part-6-базовый-docker-compose)
+    
+    
+    
 ## Part 1. Готовый докер
 
 1. Запустим докер и в терминале выкачаем официальный докер образ с помощью команды
@@ -284,16 +300,103 @@ open http://localhost:80/
 
 ![4_5](../misc/images/4_5.png "4_5")
 
- ## Part 5. Dockle
+## Part 5. Dockle
 
- 1. Установим dockle:
+1. Установим dockle:
 
- ```bash
+```bash
  brew install goodwithtech/r/dockle
- ```
+```
 
- 2. Запустим на контейнере из предыдущего задания:
+2. Запустим на контейнере из предыдущего задания:
 
- ```bash
+```bash
+dockle image_04:hello
+```
 
- ```
+![5_1](../misc/images/5_1.png "5_1")
+
+3. Исправим ошибки. 
+
+1) Для решения второй фатальной ошибки добавим rm -rf /var/lib/apt/lists после установки либ. 
+
+2) Для решения первой проблемы в докерфайле будем использовать другой образ, у которого нет ошибки CIS-DO-0010. Также хороошей практикой будет указать конкретную версию образа, чтобы в будущем не использовался другой образ latest. Я использовала 10.13-slim как более легковесный вариант, при этом один из новейших на официальном сайте. 
+
+3) Добавим пользователя nginx и контейнер будем запускаться от его лица. Чтобы всё было в порядке с загрузкой сервера, дадим права к нужным папкам пользователю nginx (команды "chown -R ..."). 
+
+4) Наконец, решим одно INFO, добавив те команды, что советует dockle (список из chmod). Другое INFO решим, используя команду из документации ("HEALTHCHECK --interval=5m --timeout=3s CMD curl -f http://localhost/ || exit 1"). 
+
+5) Для решения CIS-DO-0005 в терминале перед билдом контейнера я ввела "export DOCKER_CONTENT_TRUST=1".
+
+6) Итог:
+
+```docker
+# syntax=docker/dockerfile:1
+
+FROM debian:10.13-slim
+HEALTHCHECK --interval=5m --timeout=3s \
+  CMD curl -f http://localhost/ || exit 1
+
+COPY server ./server/
+COPY run.sh ./server/
+COPY nginx/nginx.conf /etc/nginx/nginx.conf
+RUN \
+    useradd -ms /bin/bash nginx; \   
+    apt-get update; \
+    apt-get install -y nginx gcc spawn-fcgi libfcgi-dev; \
+    rm -rf /var/lib/apt/lists && \
+    chmod 777 bin/umount && \
+    chmod 777 usr/bin/chage && \
+    chmod 777 usr/bin/newgrp && \
+    chmod 777 usr/bin/wall && \
+    chmod 777 sbin/unix_chkpwd && \
+    chmod 777 bin/su && \
+    chmod 777 usr/bin/expiry && \
+    chmod 777 bin/mount && \
+    chmod 777 usr/bin/chfn && \
+    chmod 777 usr/bin/chsh && \
+    chmod 777 usr/bin/gpasswd && \
+    chmod 777 usr/bin/passwd; \
+    chown -R nginx:nginx /server && \
+    chown -R nginx:nginx /var/run/ && \
+    chown -R nginx:nginx /var/log/nginx/ && \
+    chown -R nginx:nginx /var/lib/nginx/
+
+USER nginx
+
+CMD ["bash", "server/run.sh"]
+```
+
+7) run.sh также претерпел изменения:
+
+```bash
+#!/bin/bash
+service nginx start
+gcc /server/webserver.c -o /server/webserver -lfcgi
+spawn-fcgi -p 8080 /server/webserver
+service nginx reload
+while true; do sleep 5; done
+```
+
+8) sh-скрипт для запуска:
+
+```bash
+docker stop container_04
+docker rm container_04
+docker rmi image_04:hello
+
+export DOCKER_CONTENT_TRUST=1
+docker build -t image_04:hello .   
+docker images
+docker run -d -p 80:81 --name container_04  image_04:hello
+open http://localhost:80/
+```
+
+9. Проверка на dockle и запускаемость сервера:
+
+![5_3](../misc/images/5_3.png "5_3")
+
+![5_4](../misc/images/5_4.png "5_4")
+
+
+## Part 6. Базовый Docker Compose
