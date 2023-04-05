@@ -1,0 +1,34 @@
+# syntax=docker/dockerfile:1
+
+FROM debian:10.13-slim
+HEALTHCHECK --interval=5m --timeout=3s \
+  CMD curl -f http://localhost/ || exit 1
+
+COPY webserver.c ./server/
+COPY run.sh ./server/
+COPY nginx/nginx.conf /etc/nginx/nginx.conf
+RUN \
+    useradd -ms /bin/bash nginx; \   
+    apt-get update; \
+    apt-get install -y nginx gcc spawn-fcgi libfcgi-dev; \
+    rm -rf /var/lib/apt/lists && \
+    chmod 777 bin/umount && \
+    chmod 777 usr/bin/chage && \
+    chmod 777 usr/bin/newgrp && \
+    chmod 777 usr/bin/wall && \
+    chmod 777 sbin/unix_chkpwd && \
+    chmod 777 bin/su && \
+    chmod 777 usr/bin/expiry && \
+    chmod 777 bin/mount && \
+    chmod 777 usr/bin/chfn && \
+    chmod 777 usr/bin/chsh && \
+    chmod 777 usr/bin/gpasswd && \
+    chmod 777 usr/bin/passwd; \
+    chown -R nginx:nginx /server && \
+    chown -R nginx:nginx /var/run/ && \
+    chown -R nginx:nginx /var/log/nginx/ && \
+    chown -R nginx:nginx /var/lib/nginx/
+
+USER nginx
+
+CMD ["bash", "server/run.sh"]

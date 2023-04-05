@@ -400,3 +400,143 @@ open http://localhost:80/
 
 
 ## Part 6. Базовый Docker Compose
+
+> Сделаем Docker Compose из двух контейнеров - один (server) будет сервером, обрабатывающим запросы, другой (proxy) - прокси-сервером, передающим запросы с локальной машины на сервер.
+
+1. В папке docker_compose/server/ создадим всё необходимое для первого контейнера (сервера). Файлы для сервера, почти без изменений с предыдущего этапа:
+
+```docker
+# syntax=docker/dockerfile:1
+# Dockerfile for server, located in docker_compose/server/
+
+FROM debian:10.13-slim
+HEALTHCHECK --interval=5m --timeout=3s \
+  CMD curl -f http://localhost/ || exit 1
+
+COPY webserver.c ./server/
+COPY run.sh ./server/
+COPY nginx/nginx.conf /etc/nginx/nginx.conf
+RUN \
+    useradd -ms /bin/bash nginx; \   
+    apt-get update; \
+    apt-get install -y nginx gcc spawn-fcgi libfcgi-dev; \
+    rm -rf /var/lib/apt/lists && \
+    chmod 777 bin/umount && \
+    chmod 777 usr/bin/chage && \
+    chmod 777 usr/bin/newgrp && \
+    chmod 777 usr/bin/wall && \
+    chmod 777 sbin/unix_chkpwd && \
+    chmod 777 bin/su && \
+    chmod 777 usr/bin/expiry && \
+    chmod 777 bin/mount && \
+    chmod 777 usr/bin/chfn && \
+    chmod 777 usr/bin/chsh && \
+    chmod 777 usr/bin/gpasswd && \
+    chmod 777 usr/bin/passwd; \
+    chown -R nginx:nginx /server && \
+    chown -R nginx:nginx /var/run/ && \
+    chown -R nginx:nginx /var/log/nginx/ && \
+    chown -R nginx:nginx /var/lib/nginx/
+
+USER nginx
+
+CMD ["bash", "server/run.sh"]
+```
+
+```sh
+#!/bin/bash
+# This is docker_compose/server/run.sh
+
+gcc /server/webserver.c -o /server/webserver -lfcgi
+spawn-fcgi -p 8080 /server/webserver
+service nginx start
+while true; do sleep 5; done
+```
+
+```sh
+# This is docker_compose/server/nginx/nginx.conf
+
+events {
+}
+
+http {
+    server {
+        listen 81;
+        location / {
+          fastcgi_pass 127.0.0.1:8080;
+        }
+        location = /status {
+          stub_status;
+        }
+    }
+}
+```
+
+```c
+// This is docker_compose/server/webserver.c
+
+#include <stdio.h>
+#include <fcgi_stdio.h>
+
+int main(void) {
+    while (FCGI_Accept() >= 0) {
+        printf(
+            "Content-type: text/html\r\n"
+            "\r\n"
+            "<title>Hello World!</title>"
+            "<p>Hello World!</p>"
+        );
+    }
+    return 0;
+}
+```
+
+2. В папке docker_compose/proxy/ создадим всё необходимое для второго контейнера (прокси-сервера). Прокси-сервер будет получать запросы с локальной машины на свой 8080 порт и передавать на 81 порт сервера - всё это укажем в nginx.conf.
+
+```docker
+#This is docker_compose/proxy/Dockerfile
+
+FROM nginx:1.23.2
+
+COPY ./nginx.conf /etc/nginx/nginx.conf
+COPY run.sh .
+CMD ["sh", "run.sh"]
+```
+
+```sh
+#!/bin/bash
+#This is docker_compose/proxy/run.sh
+
+service nginx start
+while true; do sleep 5; done
+```
+
+```sh
+# This is docker_compose/proxy/nginx.conf
+events {
+}
+
+http {
+    server {
+        listen 8080;
+        location / {
+          proxy_pass http://server:81;
+        }
+    }
+}
+```
+
+3. docker_compose.yaml
+
+```yml
+version: "3.9"
+services:
+  server:
+    build: ./server/
+  proxy:
+    build: ./proxy/
+    ports:
+      - "80:8080"
+    depends_on:
+      - server
+```
