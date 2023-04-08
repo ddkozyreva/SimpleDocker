@@ -54,7 +54,7 @@ docker ps
 docker inspect [container_id|container_name]
 ```
 
-Вывод команды внушительный, потому извлече только информацию о размере контейнера, списке замапленных портов и ip контейнера
+Вывод команды внушительный, потому извлечем только информацию о размере контейнера, списке замапленных портов и ip контейнера
 
 ![1_3](../misc/images/1_3.png "1_3")
 
@@ -65,7 +65,7 @@ docker stop [container_id|container_name]
 ```
 ![1_4](../misc/images/1_4.png "1_4")
 
-7. Докер запускает сервис изолированно. Чтобы подключиться из внешней сети или с хоста к сервису нужно использовать сопоставление портов, или *маппинг*. С ним все запросы, проходящие через порт хоста, будут перенаправлены в докер-контейнер. Слева от двоеточия в команде ниже указываем порты нашей локальной машины, справа - контейнера. По умолчанию докер контейнер прослушивает порт 80.
+7. Докер запускает сервис изолированно. Чтобы подключиться из внешней сети или с хоста к сервису нужно использовать сопоставление портов, или *маппинг*. С ним все запросы, проходящие через порт хоста, будут перенаправлены в докер-контейнер. Слева от двоеточия в команде ниже указываем порты нашей локальной машины, справа - контейнера. По умолчанию докер контейнер прослушивает порт 80, к остальным портам (если не указать иное) с локальной машины доступа нет.
 
 ```bash
 docker run -d -p 443:80 -p 80:80 nginx
@@ -78,7 +78,7 @@ docker run -d -p 443:80 -p 80:80 nginx
 Далее в строке браузера введем и проверим, что по данному адресу доступна стартовая страница nginx.
 
 ```bash
-http://localhost:80
+open http://localhost:80
 ```
 
 
@@ -159,7 +159,7 @@ docker export CONTAINER > CONTAINER.tar
 
 ![2_5](../misc/images/2_5.png "2_5")
 
-8. Удалим контейнер и проверим, что в списке контейнеров его не осталосью (P.S. потом я почитсила и другие контейнеры, чтобы они не мешали.)
+8. Удалим контейнер и проверим, что в списке контейнеров его не осталось (P.S. потом я почиcтила и другие контейнеры, чтобы они не мешали.)
 
 ![2_6](../misc/images/2_6.png "2_6")
 
@@ -174,6 +174,8 @@ docker run -p 80:80 -t -i imported_container /bin/sh
 
 
 ## Part 3. Мини веб-сервер
+
+> Для проверки в папке src введите "sh build/03.sh"
 
 1. Напишем файл на C и fast-cgi для отражения "Hello world!" в браузере. Документация для помощи: https://fastcgi-archives.github.io/FastCGI_Developers_Kit_FastCGI.html
 
@@ -198,9 +200,9 @@ int main(void) {
 Воспользуемся докер-контейнером. Скачаем nginx образ, запустим контейнер с настроенными портами и в нем сделаем установку необходимых пакетов: spawn-fcgi, gcc, libfcgi-dev. Последняя пригодится при линкове проекта: будет добавлено _-lfcgi_. При помощи spawn-fcgi запустим скомпилированный веб-сервер на порту 8080. 
 
 ```bash
-sh server/webserver.sh
+sh build/03.sh
 ```
-- server/webserver.sh:
+- build/03.sh:
 ```bash
 # Чистка неиспользуемых контейнеров и образов
 docker system prune -a -f
@@ -229,12 +231,9 @@ open http://localhost:81/
 ```
 
 
-https://docs.docker.com/engine/reference/builder/#cmd
-
-
 ## Part 4. Свой докер
 
- > Теперь напишем свой докерфайл и в нем пропишем копирование nginx.conf с хоста и установку нужных пакетов
+ > Теперь напишем свой докерфайл и в нем пропишем копирование nginx.conf с хоста и установку нужных пакетов. Для проверки задания достаточно ввести "sh build/04.sh".
 
  1. Dockerfile:
 
@@ -244,7 +243,7 @@ https://docs.docker.com/engine/reference/builder/#cmd
 FROM nginx
 COPY nginx/nginx.conf /etc/nginx/nginx.conf
 COPY server/webserver.c .
-COPY run.sh .
+COPY build/run_04.sh ./run.sh
 RUN apt-get update && \
     apt-get install -y gcc spawn-fcgi libfcgi-dev && \
     gcc webserver.c -o webserver -lfcgi
@@ -271,7 +270,7 @@ http {
 
 ```
 
-3. run.sh для команд, которые запустятся по умолчанию при запуске контейнера:
+3. run_04.sh для команд, которые запустятся по умолчанию при запуске контейнера:
 
 ```sh
 #!/bin/bash
@@ -282,10 +281,27 @@ nginx -g "daemon off;"
 4. bash-скриптом 04.sh сбилдим из докерфайла образ и запустим на его основе контейнер с маппингом портов. Откроем http://localhost:80/ на хосте.
 
 ```bash
+# Чистка контейнеров и образов
+docker stop container_04
+docker rm container_04
+docker rmi image_04:hello
+
+# Cборка и проверка
+cat dockerfiles/04 > Dockerfile
+
 docker build -t image_04:hello .   
 docker images
 docker run -d -p 80:81 --name container_04  image_04:hello
+
 open http://localhost:80/
+open http://127.0.0.1:80/status
+
+sleep 5
+docker restart container_04
+
+open http://localhost:80/
+open http://127.0.0.1:80/status
+
  ```
 
 5. Скриншоты для проверки данного задания. В конце перезапустили контейнер и проверили, что по тем же ссылкам вебсервер работает.
@@ -301,6 +317,8 @@ open http://localhost:80/
 ![4_5](../misc/images/4_5.png "4_5")
 
 ## Part 5. Dockle
+
+> Для запуска задания достаточно ввести "sh build/05.sh" из src.
 
 1. Установим dockle:
 
@@ -338,7 +356,7 @@ HEALTHCHECK --interval=5m --timeout=3s \
   CMD curl -f http://localhost/ || exit 1
 
 COPY server ./server/
-COPY run.sh ./server/
+COPY build/run.sh ./server/
 COPY nginx/nginx.conf /etc/nginx/nginx.conf
 RUN \
     useradd -ms /bin/bash nginx; \   
@@ -371,28 +389,13 @@ CMD ["bash", "server/run.sh"]
 
 ```bash
 #!/bin/bash
-service nginx start
 gcc /server/webserver.c -o /server/webserver -lfcgi
 spawn-fcgi -p 8080 /server/webserver
-service nginx reload
+service nginx start
 while true; do sleep 5; done
 ```
 
-8) sh-скрипт для запуска:
-
-```bash
-docker stop container_04
-docker rm container_04
-docker rmi image_04:hello
-
-export DOCKER_CONTENT_TRUST=1
-docker build -t image_04:hello .   
-docker images
-docker run -d -p 80:81 --name container_04  image_04:hello
-open http://localhost:80/
-```
-
-9. Проверка на dockle и запускаемость сервера:
+8) Проверка на dockle и запускаемость сервера:
 
 ![5_3](../misc/images/5_3.png "5_3")
 
@@ -401,7 +404,18 @@ open http://localhost:80/
 
 ## Part 6. Базовый Docker Compose
 
+> Для проверки введите "sh build/docker_compose.sh" в src.
+
 > Сделаем Docker Compose из двух контейнеров - один (server) будет сервером, обрабатывающим запросы, другой (proxy) - прокси-сервером, передающим запросы с локальной машины на сервер.
+
+```mermaid
+flowchart LR
+
+A[Local machine] --> |80:8080| B[Proxy server] --> |8080:81| C[Server] --> |81:8080 и обратно| C
+B --> |8080:80| A
+C --> |81:8080| B
+```
+> http-запрос по умолчанию находится на 80 порту локальной машины. Запрос оттуда должен поступить на 8080 порт прокси сервера (второй контейнер с nginx). Данная связь будет прописана в docker_compose.yml для контейнера proxy. Далее в nginx.conf прокси-сервера укажем, что запросы, поступившие на 8080, должны быть переданы серверу на его 81-й порт (proxy_pass http://server:81). В nginx.conf сервера укажем, что сервер слушает свой 81-й порт и оттуда перенаправляет запросы на свой 8080-й порт. На 8080-м порту расположена служба nginx, которая обработает запрос и выдаст нужный файл.
 
 1. В папке docker_compose/server/ создадим всё необходимое для первого контейнера (сервера). Файлы для сервера, почти без изменений с предыдущего этапа:
 
@@ -413,8 +427,8 @@ FROM debian:10.13-slim
 HEALTHCHECK --interval=5m --timeout=3s \
   CMD curl -f http://localhost/ || exit 1
 
-COPY webserver.c ./server/
-COPY run.sh ./server/
+COPY server ./server/
+COPY build/run.sh ./run.sh
 COPY nginx/nginx.conf /etc/nginx/nginx.conf
 RUN \
     useradd -ms /bin/bash nginx; \   
@@ -440,7 +454,7 @@ RUN \
 
 USER nginx
 
-CMD ["bash", "server/run.sh"]
+CMD ["bash", "run.sh"]
 ```
 
 ```sh
@@ -540,3 +554,7 @@ services:
     depends_on:
       - server
 ```
+
+- Проверка:
+
+![6_1](../misc/images/6_1.png "6_1")
