@@ -1,8 +1,11 @@
 # Simple Docker
 
+> Проект школы 21, посвященный докер-контейнерам. В README в папке src/ описана проделанная работа.
+
 Introduction to docker. Developing a simple docker image for your own server.
 
 The russian version of the task can be found in the repository.
+
 
 ## Contents
 
